@@ -302,6 +302,22 @@ docker compose logs mattermost
 2. 포트 충돌 → `sudo netstat -tlnp | grep 8065`로 확인
 3. 메모리 부족 → `free -h`로 확인
 
+### 파일 업로드/플러그인 설치 실패 (권한)
+
+파일 업로드나 플러그인 설치 시 `/opt/mattermost/data`, `/opt/mattermost/plugins`에 쓰기 실패가 발생하면
+볼륨 권한 문제일 가능성이 높습니다. 컨테이너는 UID/GID 2000으로 실행됩니다.
+
+**Bind mount 사용 시 (권장)**:
+```bash
+sudo chown -R 2000:2000 volumes/mattermost volumes/postgres
+sudo chmod -R 775 volumes/mattermost volumes/postgres
+```
+
+**Named volume 사용 시**:
+```bash
+docker compose exec --user root mattermost chown -R mattermost:mattermost /opt/mattermost/
+```
+
 ### 메모리 부족 문제
 
 Raspberry Pi 4GB 이하 모델에서 메모리 부족 발생 시:

@@ -18,18 +18,25 @@ Raspberry Pi 및 ARM64 아키텍처를 위한 Mattermost Docker 이미지 자동
 PostgreSQL과 함께 완전한 Mattermost 스택을 배포합니다.
 
 ```bash
-# 1. docker-compose.yml 다운로드
+# 1. 필요한 파일 다운로드
 wget https://raw.githubusercontent.com/zemyblue/mattermost-arm64-image/main/docker-compose.yml
+wget https://raw.githubusercontent.com/zemyblue/mattermost-arm64-image/main/.env.example
 
-# 2. 실행
+# 2. 환경 설정 파일 생성 (선택 사항)
+cp .env.example .env
+# .env 파일을 열어서 필요한 설정 변경 (비밀번호, URL 등)
+
+# 3. 실행
 docker compose up -d
 
-# 3. 로그 확인
+# 4. 로그 확인
 docker compose logs -f
 
-# 4. 웹 브라우저에서 접속
+# 5. 웹 브라우저에서 접속
 # http://localhost:8065
 ```
+
+**참고**: `.env` 파일을 만들지 않아도 기본 설정으로 실행됩니다. 설정을 변경하고 싶을 때만 `.env` 파일을 생성하세요.
 
 ### Docker만 사용 (PostgreSQL 별도 필요)
 
@@ -73,6 +80,103 @@ docker compose up -d
 
 자세한 내용은 [HOWTO_RASPBERRY_PI.md](HOWTO_RASPBERRY_PI.md)를 확인하세요.
 
+## 환경 설정 (.env)
+
+`.env` 파일을 사용하여 `docker-compose.yml`을 수정하지 않고 설정을 변경할 수 있습니다.
+
+### 설정 파일 생성
+
+```bash
+# .env.example을 복사하여 .env 생성
+cp .env.example .env
+
+# 에디터로 열어서 수정
+nano .env
+```
+
+### 주요 설정 항목
+
+| 카테고리 | 환경 변수 | 기본값 | 설명 |
+|---------|----------|--------|------|
+| **네트워크** | `MATTERMOST_HTTP_PORT` | `8065` | HTTP 포트 |
+| | `MATTERMOST_SITE_URL` | `http://localhost:8065` | 사이트 URL |
+| **데이터베이스** | `POSTGRES_USER` | `mmuser` | PostgreSQL 사용자 |
+| | `POSTGRES_PASSWORD` | `mmuser_password` | PostgreSQL 비밀번호 ⚠️ |
+| | `POSTGRES_DB` | `mattermost` | 데이터베이스 이름 |
+| **볼륨** | `POSTGRES_DATA_PATH` | `postgres_data` | DB 데이터 경로 |
+| | `MATTERMOST_DATA_PATH` | `mattermost_data` | 파일 저장 경로 |
+| **이메일** | `EMAIL_VERIFICATION_REQUIRED` | `false` | 이메일 검증 필수 |
+| | `SMTP_SERVER` | - | SMTP 서버 (프로덕션) |
+| **기타** | `TIMEZONE` | `Asia/Seoul` | 타임존 |
+| | `MAX_FILE_SIZE` | `104857600` | 최대 파일 크기 (100MB) |
+
+### 일반적인 설정 예시
+
+#### 1. 포트 변경
+
+```env
+MATTERMOST_HTTP_PORT=8080
+MATTERMOST_SITE_URL=http://localhost:8080
+```
+
+#### 2. 비밀번호 변경 (권장)
+
+```env
+POSTGRES_PASSWORD=your_secure_password_here
+```
+
+#### 3. Bind Mount로 데이터 저장
+
+```bash
+# 먼저 디렉토리 생성
+mkdir -p volumes/{postgres,mattermost/{data,logs,config,plugins}}
+
+# 컨테이너 사용자(UID/GID 2000)가 쓸 수 있게 권한 설정
+sudo chown -R 2000:2000 volumes/mattermost volumes/postgres
+sudo chmod -R 775 volumes/mattermost volumes/postgres
+
+# .env 파일 수정
+POSTGRES_DATA_PATH=./volumes/postgres
+MATTERMOST_DATA_PATH=./volumes/mattermost/data
+MATTERMOST_LOGS_PATH=./volumes/mattermost/logs
+MATTERMOST_CONFIG_PATH=./volumes/mattermost/config
+MATTERMOST_PLUGINS_PATH=./volumes/mattermost/plugins
+```
+
+#### 4. SMTP 이메일 설정 (Gmail 예시)
+
+```env
+EMAIL_VERIFICATION_REQUIRED=true
+EMAIL_NOTIFICATIONS_ENABLED=true
+SMTP_AUTH_ENABLED=true
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+SMTP_FROM_NAME=Mattermost
+SMTP_FROM_EMAIL=your-email@gmail.com
+```
+
+**Gmail 앱 비밀번호 생성**: https://myaccount.google.com/apppasswords
+
+### 설정 적용
+
+```bash
+# 설정 변경 후 재시작
+docker compose down
+docker compose up -d
+```
+
+### 현재 설정 확인
+
+```bash
+# 환경 변수 확인
+docker compose config
+
+# 특정 서비스의 환경 변수
+docker compose exec mattermost env | grep MM_
+```
+
 ## 버전 태그 전략
 
 이 프로젝트는 유연한 버전 관리를 위한 다중 태그 시스템을 사용합니다.
@@ -108,29 +212,20 @@ docker pull ghcr.io/zemyblue/mattermost-arm64:11.3
 docker pull ghcr.io/zemyblue/mattermost-arm64:latest
 ```
 
-## 환경 변수
+## 고급 설정
 
-### 데이터베이스 설정
+### Mattermost 환경 변수
 
-| 변수 | 기본값 | 설명 |
-|-----|-------|-----|
-| `MM_SQLSETTINGS_DRIVERNAME` | `postgres` | 데이터베이스 드라이버 |
-| `MM_SQLSETTINGS_DATASOURCE` | - | PostgreSQL 연결 문자열 |
+`.env` 파일을 통해 주요 설정을 변경할 수 있습니다. 자세한 내용은 위의 **환경 설정 (.env)** 섹션을 참조하세요.
 
-### 서버 설정
+고급 Mattermost 설정이 필요한 경우, `MM_` 접두사를 가진 환경 변수를 추가할 수 있습니다:
 
-| 변수 | 기본값 | 설명 |
-|-----|-------|-----|
-| `MM_SERVICESETTINGS_SITEURL` | `http://localhost:8065` | 서버 URL |
-| `MM_SERVICESETTINGS_ENABLELOCALMODE` | `true` | 로컬 모드 활성화 |
-| `TZ` | `UTC` | 타임존 |
-
-### 파일 및 플러그인
-
-| 변수 | 기본값 | 설명 |
-|-----|-------|-----|
-| `MM_FILESETTINGS_DIRECTORY` | `/opt/mattermost/data` | 파일 저장 경로 |
-| `MM_PLUGINSETTINGS_DIRECTORY` | `/opt/mattermost/plugins` | 플러그인 경로 |
+```yaml
+# docker-compose.yml의 mattermost 서비스에 추가
+environment:
+  MM_TEAMSETTINGS_MAXUSERSPERTEAM: 100
+  MM_SERVICESETTINGS_ENABLEDEVELOPER: "true"
+```
 
 전체 환경 변수 목록은 [Mattermost 공식 문서](https://docs.mattermost.com/configure/configuration-settings.html)를 참조하세요.
 
@@ -206,13 +301,17 @@ docker compose ps
 
 ### 권한 문제
 
-볼륨 권한 문제가 발생하는 경우:
+볼륨 권한 문제가 발생하는 경우(파일 업로드/플러그인 설치 실패 포함):
 
 ```bash
 # 컨테이너 내부에서 확인
 docker compose exec mattermost ls -la /opt/mattermost/
 
-# 권한 수정 (필요시)
+# bind mount 사용 시: 호스트 경로 권한 수정
+sudo chown -R 2000:2000 volumes/mattermost volumes/postgres
+sudo chmod -R 775 volumes/mattermost volumes/postgres
+
+# named volume 사용 시: 볼륨 내부 권한 수정
 docker compose exec --user root mattermost chown -R mattermost:mattermost /opt/mattermost/
 ```
 
