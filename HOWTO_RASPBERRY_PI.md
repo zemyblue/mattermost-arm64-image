@@ -107,15 +107,22 @@ docker compose logs -f mattermost
 ### 방법 2: Git Clone
 
 ```bash
-# 1. Git 설치 (설치되지 않은 경우)
-sudo apt install -y git
+# 1. 필요한 파일 다운로드
+wget https://raw.githubusercontent.com/zemyblue/mattermost-arm64-image/main/docker-compose.yml
+wget https://raw.githubusercontent.com/zemyblue/mattermost-arm64-image/main/.env.example
 
-# 2. 저장소 클론
-git clone https://github.com/zemyblue/mattermost-arm64-image.git
-cd mattermost-arm64-image
+# 2. 환경 설정 파일 생성 (선택 사항)
+cp .env.example .env
+# .env 파일을 열어서 필요한 설정 변경 (비밀번호, URL 등)
 
 # 3. 실행
 docker compose up -d
+
+# 4. 로그 확인
+docker compose logs -f
+
+# 5. 웹 브라우저에서 접속
+# http://localhost:8065
 ```
 
 ### 컨테이너 상태 확인
@@ -309,6 +316,7 @@ docker compose logs mattermost
 
 **Bind mount 사용 시 (권장)**:
 ```bash
+mkdir -p volumes/{postgres,mattermost/{data,logs,config,plugins}}
 sudo chown -R 2000:2000 volumes/mattermost volumes/postgres
 sudo chmod -R 775 volumes/mattermost volumes/postgres
 ```
