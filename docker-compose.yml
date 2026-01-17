@@ -6,6 +6,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: mmuser
+      # 보안: 프로덕션 환경에서는 반드시 비밀번호를 변경하세요
       POSTGRES_PASSWORD: mmuser_password
       POSTGRES_DB: mattermost
     volumes:
@@ -17,29 +18,30 @@ services:
       retries: 5
 
   mattermost:
-    # GHCR 이미지 사용 (본인의 GitHub username으로 변경)
-    # image: ghcr.io/YOUR_GITHUB_USERNAME/mattermost-arm64:latest
+    # GitHub Container Registry에서 ARM64 이미지 사용
+    image: ghcr.io/zemyblue/mattermost-arm64:latest
 
-    # 또는 로컬 빌드 사용
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        MATTERMOST_VERSION: 11.3.0
+    # 로컬 빌드를 원하는 경우 위 image를 주석 처리하고 아래 build 섹션의 주석을 해제하세요
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    #   args:
+    #     MATTERMOST_VERSION: 11.3.0
 
     restart: unless-stopped
     ports:
       - "8065:8065"
       - "8067:8067"
     environment:
-      # 타임존 설정
+      # 타임존 설정 (원하는 타임존으로 변경 가능)
       TZ: Asia/Seoul
 
-      # PostgreSQL 설정
+      # PostgreSQL 연결 설정 (POSTGRES_PASSWORD를 변경한 경우 여기도 함께 변경)
       MM_SQLSETTINGS_DRIVERNAME: postgres
       MM_SQLSETTINGS_DATASOURCE: postgres://mmuser:mmuser_password@postgres:5432/mattermost?sslmode=disable&connect_timeout=10
 
-      # 서버 설정
+      # 서버 설정 (Raspberry Pi 호스트명 또는 IP로 변경)
+      # 예: http://raspberrypi.local:8065 또는 http://192.168.1.100:8065
       MM_SERVICESETTINGS_SITEURL: http://localhost:8065
       MM_SERVICESETTINGS_ENABLELOCALMODE: "true"
 

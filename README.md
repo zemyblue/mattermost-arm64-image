@@ -13,110 +13,65 @@ Raspberry Pi 및 ARM64 아키텍처를 위한 Mattermost Docker 이미지 자동
 
 ## Quick Start
 
-### Docker로 실행
-
-```bash
-docker pull ghcr.io/YOUR_GITHUB_USERNAME/mattermost-arm64:latest
-
-docker run -d \
-  --name mattermost \
-  -p 8065:8065 \
-  -v mattermost_data:/opt/mattermost/data \
-  -v mattermost_config:/opt/mattermost/config \
-  -v mattermost_logs:/opt/mattermost/logs \
-  -v mattermost_plugins:/opt/mattermost/plugins \
-  ghcr.io/YOUR_GITHUB_USERNAME/mattermost-arm64:latest
-```
-
-웹 브라우저에서 `http://localhost:8065`에 접속합니다.
-
 ### Docker Compose로 실행 (권장)
 
 PostgreSQL과 함께 완전한 Mattermost 스택을 배포합니다.
 
-1. `docker-compose.yml` 파일 수정:
-   ```yaml
-   # YOUR_GITHUB_USERNAME을 본인의 GitHub username으로 변경
-   image: ghcr.io/YOUR_GITHUB_USERNAME/mattermost-arm64:latest
-   ```
-
-2. 실행:
-   ```bash
-   docker-compose up -d
-   ```
-
-3. 로그 확인:
-   ```bash
-   docker-compose logs -f mattermost
-   ```
-
-4. 중지:
-   ```bash
-   docker-compose down
-   ```
-
-## Raspberry Pi 설정 가이드
-
-### 사전 요구사항
-
-- Raspberry Pi 4 또는 5 (권장: 4GB RAM 이상)
-- Raspberry Pi OS (64-bit)
-- Docker 및 Docker Compose 설치
-
-### Docker 설치
-
 ```bash
-# Docker 설치 스크립트 실행
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
+# 1. docker-compose.yml 다운로드
+wget https://raw.githubusercontent.com/zemyblue/mattermost-arm64-image/main/docker-compose.yml
 
-# 현재 사용자를 docker 그룹에 추가
-sudo usermod -aG docker $USER
+# 2. 실행
+docker compose up -d
 
-# 재로그인 또는 다음 명령어 실행
-newgrp docker
+# 3. 로그 확인
+docker compose logs -f
 
-# Docker Compose 설치 (V2)
-sudo apt-get update
-sudo apt-get install docker-compose-plugin
-
-# 설치 확인
-docker --version
-docker compose version
+# 4. 웹 브라우저에서 접속
+# http://localhost:8065
 ```
 
-### Mattermost 배포
+### Docker만 사용 (PostgreSQL 별도 필요)
 
-1. 프로젝트 디렉토리 생성:
-   ```bash
-   mkdir -p ~/mattermost
-   cd ~/mattermost
-   ```
+```bash
+# 이미지 다운로드
+docker pull ghcr.io/zemyblue/mattermost-arm64:latest
 
-2. `docker-compose.yml` 다운로드:
-   ```bash
-   wget https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/mattermost-arm64-image/main/docker-compose.yml
-   ```
+# 실행 (PostgreSQL이 이미 실행 중이어야 함)
+docker run -d \
+  --name mattermost \
+  -p 8065:8065 \
+  -e MM_SQLSETTINGS_DATASOURCE="postgres://mmuser:password@postgres:5432/mattermost?sslmode=disable" \
+  -v mattermost_data:/opt/mattermost/data \
+  ghcr.io/zemyblue/mattermost-arm64:latest
+```
 
-3. 환경 변수 설정 (선택):
-   ```bash
-   # .env 파일 생성
-   cat > .env <<EOF
-   TZ=Asia/Seoul
-   POSTGRES_PASSWORD=your_secure_password
-   MM_SERVICESETTINGS_SITEURL=http://raspberrypi.local:8065
-   EOF
-   ```
+**참고**: Mattermost는 PostgreSQL이 필수입니다. Docker Compose 사용을 권장합니다.
 
-4. 실행:
-   ```bash
-   docker compose up -d
-   ```
+## Raspberry Pi에서 사용하기
 
-5. 초기 설정:
-   - 브라우저에서 `http://raspberrypi.local:8065` 접속
-   - 관리자 계정 생성
-   - 팀 생성 및 설정
+Raspberry Pi에서 Mattermost를 설치하고 실행하는 방법은 별도 가이드를 참조하세요:
+
+**📖 [Raspberry Pi 완전 가이드](HOWTO_RASPBERRY_PI.md)**
+
+### 빠른 시작 (요약)
+
+```bash
+# 1. Docker 설치
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+newgrp docker
+
+# 2. Mattermost 배포
+mkdir -p ~/mattermost && cd ~/mattermost
+wget https://raw.githubusercontent.com/zemyblue/mattermost-arm64-image/main/docker-compose.yml
+docker compose up -d
+
+# 3. 브라우저에서 접속
+# http://raspberrypi.local:8065
+```
+
+자세한 내용은 [HOWTO_RASPBERRY_PI.md](HOWTO_RASPBERRY_PI.md)를 확인하세요.
 
 ## 버전 태그 전략
 
@@ -126,10 +81,10 @@ docker compose version
 
 Mattermost 버전 `11.3.0`이 릴리스되면 다음 태그가 생성됩니다:
 
-- `ghcr.io/USER/mattermost-arm64:11.3.0` - 정확한 패치 버전
-- `ghcr.io/USER/mattermost-arm64:11.3` - 11.3.x의 최신 버전
-- `ghcr.io/USER/mattermost-arm64:11` - 11.x.x의 최신 버전
-- `ghcr.io/USER/mattermost-arm64:latest` - 전체 최신 버전
+- `ghcr.io/zemyblue/mattermost-arm64:11.3.0` - 정확한 패치 버전
+- `ghcr.io/zemyblue/mattermost-arm64:11.3` - 11.3.x의 최신 버전
+- `ghcr.io/zemyblue/mattermost-arm64:11` - 11.x.x의 최신 버전
+- `ghcr.io/zemyblue/mattermost-arm64:latest` - 전체 최신 버전
 
 ### 태그 선택 가이드
 
@@ -144,13 +99,13 @@ Mattermost 버전 `11.3.0`이 릴리스되면 다음 태그가 생성됩니다:
 
 ```bash
 # 프로덕션: 정확한 버전 사용
-docker pull ghcr.io/USER/mattermost-arm64:11.3.0
+docker pull ghcr.io/zemyblue/mattermost-arm64:11.3.0
 
 # 스테이징: 마이너 버전의 최신 패치
-docker pull ghcr.io/USER/mattermost-arm64:11.3
+docker pull ghcr.io/zemyblue/mattermost-arm64:11.3
 
 # 개발: 최신 버전
-docker pull ghcr.io/USER/mattermost-arm64:latest
+docker pull ghcr.io/zemyblue/mattermost-arm64:latest
 ```
 
 ## 환경 변수
@@ -285,7 +240,7 @@ Raspberry Pi에서 메모리 부족 문제가 발생하는 경우:
 
 ```bash
 # GHCR 인증 (private repository인 경우)
-echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+echo $GITHUB_TOKEN | docker login ghcr.io -u zemyblue --password-stdin
 
 # 네트워크 확인
 docker pull alpine:latest
@@ -330,7 +285,7 @@ docker buildx build \
 
 ```yaml
 mattermost:
-  # image: ghcr.io/USER/mattermost-arm64:latest
+  # image: ghcr.io/zemyblue/mattermost-arm64:latest
   build:
     context: .
     dockerfile: Dockerfile
@@ -383,4 +338,4 @@ Mattermost는 별도의 라이선스를 가지고 있습니다. 자세한 내용
 
 ## 지원
 
-문제가 발생하거나 질문이 있으시면 [이슈](https://github.com/YOUR_GITHUB_USERNAME/mattermost-arm64-image/issues)를 생성해주세요.
+문제가 발생하거나 질문이 있으시면 [이슈](https://github.com/zemyblue/mattermost-arm64-image/issues)를 생성해주세요.
