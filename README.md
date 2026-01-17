@@ -131,6 +131,10 @@ POSTGRES_PASSWORD=your_secure_password_here
 # 먼저 디렉토리 생성
 mkdir -p volumes/{postgres,mattermost/{data,logs,config,plugins}}
 
+# 컨테이너 사용자(UID/GID 2000)가 쓸 수 있게 권한 설정
+sudo chown -R 2000:2000 volumes/mattermost volumes/postgres
+sudo chmod -R 775 volumes/mattermost volumes/postgres
+
 # .env 파일 수정
 POSTGRES_DATA_PATH=./volumes/postgres
 MATTERMOST_DATA_PATH=./volumes/mattermost/data
@@ -297,13 +301,17 @@ docker compose ps
 
 ### 권한 문제
 
-볼륨 권한 문제가 발생하는 경우:
+볼륨 권한 문제가 발생하는 경우(파일 업로드/플러그인 설치 실패 포함):
 
 ```bash
 # 컨테이너 내부에서 확인
 docker compose exec mattermost ls -la /opt/mattermost/
 
-# 권한 수정 (필요시)
+# bind mount 사용 시: 호스트 경로 권한 수정
+sudo chown -R 2000:2000 volumes/mattermost volumes/postgres
+sudo chmod -R 775 volumes/mattermost volumes/postgres
+
+# named volume 사용 시: 볼륨 내부 권한 수정
 docker compose exec --user root mattermost chown -R mattermost:mattermost /opt/mattermost/
 ```
 

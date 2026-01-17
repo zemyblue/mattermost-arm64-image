@@ -37,6 +37,7 @@ mattermost_logs/
 mattermost_config/
 mattermost_plugins/
 postgres_data/
+volumes/
 
 # Temporary files
 *.tmp
