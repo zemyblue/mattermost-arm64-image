@@ -1,0 +1,39 @@
+name: Cleanup Old Container Images
+
+on:
+  # 수동 트리거만 지원
+  workflow_dispatch:
+    inputs:
+      keep_recent:
+        description: 'Number of recent untagged images to keep'
+        required: false
+        type: number
+        default: 5
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Delete untagged images
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: 'mattermost-arm64'
+          package-type: 'container'
+          min-versions-to-keep: ${{ inputs.keep_recent }}
+          delete-only-untagged-versions: 'true'
+
+      - name: Generate cleanup summary
+        if: always()
+        run: |
+          echo "# Cleanup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Untagged images kept**: ${{ inputs.keep_recent }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Old untagged images have been removed from GitHub Container Registry." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> **Note**: Tagged images are never deleted by this workflow." >> $GITHUB_STEP_SUMMARY
