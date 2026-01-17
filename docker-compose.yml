@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mmuser
+      POSTGRES_PASSWORD: mmuser_password
+      POSTGRES_DB: mattermost
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mmuser -d mattermost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mattermost:
+    # GHCR 이미지 사용 (본인의 GitHub username으로 변경)
+    # image: ghcr.io/YOUR_GITHUB_USERNAME/mattermost-arm64:latest
+
+    # 또는 로컬 빌드 사용
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        MATTERMOST_VERSION: 11.3.0
+
+    restart: unless-stopped
+    ports:
+      - "8065:8065"
+      - "8067:8067"
+    environment:
+      # 타임존 설정
+      TZ: Asia/Seoul
+
+      # PostgreSQL 설정
+      MM_SQLSETTINGS_DRIVERNAME: postgres
+      MM_SQLSETTINGS_DATASOURCE: postgres://mmuser:mmuser_password@postgres:5432/mattermost?sslmode=disable&connect_timeout=10
+
+      # 서버 설정
+      MM_SERVICESETTINGS_SITEURL: http://localhost:8065
+      MM_SERVICESETTINGS_ENABLELOCALMODE: "true"
+
+      # 파일 저장 설정
+      MM_FILESETTINGS_DIRECTORY: /opt/mattermost/data
+
+      # 플러그인 설정
+      MM_PLUGINSETTINGS_DIRECTORY: /opt/mattermost/plugins
+      MM_PLUGINSETTINGS_CLIENTDIRECTORY: /opt/mattermost/client/plugins
+    volumes:
+      - mattermost_data:/opt/mattermost/data
+      - mattermost_logs:/opt/mattermost/logs
+      - mattermost_config:/opt/mattermost/config
+      - mattermost_plugins:/opt/mattermost/plugins
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8065/api/v4/system/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  postgres_data:
+  mattermost_data:
+  mattermost_logs:
+  mattermost_config:
+  mattermost_plugins:
