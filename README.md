@@ -266,7 +266,134 @@ docker run --rm \
 docker compose exec -T postgres psql -U mmuser mattermost < mattermost_db_backup.sql
 ```
 
+## 모바일 앱 푸시 알림 설정
+
+모바일 앱에서 알림을 받으려면 Push Notification Service를 설정해야 합니다.
+
+### Cloudflare 터널 사용 시
+
+```bash
+# .env 파일 생성/수정
+cp .env.example .env
+nano .env
+```
+
+다음 설정 추가:
+```env
+# Cloudflare 터널 URL로 변경 (HTTPS 필수)
+MATTERMOST_SITE_URL=https://your-domain.com
+
+# 푸시 알림 서버 (테스트 서버 사용)
+PUSH_NOTIFICATION_SERVER=https://push-test.mattermost.com
+PUSH_NOTIFICATION_CONTENTS=full
+```
+
+재시작:
+```bash
+docker compose down
+docker compose up -d
+```
+
+### 푸시 알림 서버 옵션
+
+| 옵션 | URL | 비용 | 제한사항 | 권장 사용 |
+|-----|-----|-----|---------|----------|
+| **테스트 서버** (기본) | `https://push-test.mattermost.com` | 무료 | 알림 수 제한, SLA 없음 | 개발/테스트/개인 사용 |
+| **HPNS** | `https://push.mattermost.com` | 유료 | Enterprise E20 라이선스 필요 | 프로덕션 (상용) |
+| **자체 Push Proxy** | `https://your-push-proxy.com` | **무료** | 직접 구축/운영 필요 | **프로덕션 (무료 무제한)** |
+
+**💡 제한 없이 무료로 사용하려면**: 자체 Push Proxy 서버 구축을 권장합니다. 한 번 설정하면 알림 수 제한 없이 영구적으로 무료 사용 가능합니다.
+
+### 자체 Push Proxy 서버 구축 (권장)
+
+프로덕션 환경에서 **무료로 제한 없이** 푸시 알림을 사용하려면 자체 Push Proxy 서버를 구축하세요.
+
+**장점**:
+- ✅ **완전 무료**: 서버 비용만 필요 (월 $5 정도의 VPS로 충분)
+- ✅ **무제한**: 알림 수 제한 없음
+- ✅ **프라이버시**: 데이터가 외부 서버로 전송되지 않음
+- ✅ **완전한 제어**: 커스터마이징 가능
+
+**단점**:
+- ⚠️ 초기 설정 필요 (1-2시간)
+- ⚠️ 서버 관리 필요
+
+**구축 가이드**: [Mattermost Push Proxy](https://github.com/mattermost/mattermost-push-proxy)
+
+**간단한 설치 방법** (Docker 사용):
+
+```bash
+# Push Proxy 서버에서 실행
+git clone https://github.com/mattermost/mattermost-push-proxy.git
+cd mattermost-push-proxy
+
+# 설정 파일 생성
+cp config/config-sample.json config/config.json
+
+# config.json 수정 (Apple/Google 인증서 설정)
+# 자세한 내용: https://developers.mattermost.com/contribute/mobile/push-notifications/service/
+
+# Docker로 실행
+docker build -t mattermost-push-proxy .
+docker run -d -p 8066:8066 -v $(pwd)/config:/config mattermost-push-proxy
+
+# Mattermost 서버의 .env 파일에 추가
+# PUSH_NOTIFICATION_SERVER=https://your-push-proxy-server.com:8066
+```
+
+**참고**: 자체 Push Proxy는 Apple/Google 개발자 계정이 필요하며, 모바일 앱을 직접 빌드해야 합니다. 자세한 내용은 [공식 문서](https://developers.mattermost.com/contribute/mobile/push-notifications/)를 참조하세요.
+
+### 알림 내용 설정
+
+```env
+# full: 전체 메시지 내용 (기본값, 권장)
+PUSH_NOTIFICATION_CONTENTS=full
+
+# generic: "새 메시지가 있습니다" 형태
+# PUSH_NOTIFICATION_CONTENTS=generic
+
+# id_loaded: 메시지 ID만 (보안 강화)
+# PUSH_NOTIFICATION_CONTENTS=id_loaded
+```
+
+### 검증
+
+1. 모바일 앱 설치: [iOS](https://apps.apple.com/app/mattermost/id984966508) / [Android](https://play.google.com/store/apps/details?id=com.mattermost.rn)
+2. 서버 URL 입력: `https://your-domain.com`
+3. 로그인 후 알림 테스트
+4. 시스템 콘솔 → 환경 → 푸시 알림 서버에서 "연결 테스트" 확인
+
 ## 트러블슈팅
+
+### 모바일 앱 알림이 오지 않음
+
+**증상**: "서버 구성상 알람을 수신할 수 없습니다" 메시지
+
+**해결**:
+```bash
+# 1. .env 파일 확인
+cat .env | grep PUSH
+
+# 2. 푸시 알림 설정 추가 (세 가지 모두 필요!)
+echo "SEND_PUSH_NOTIFICATIONS=true" >> .env
+echo "PUSH_NOTIFICATION_SERVER=https://push-test.mattermost.com" >> .env
+echo "PUSH_NOTIFICATION_CONTENTS=full" >> .env
+
+# 3. SITE_URL이 HTTPS인지 확인 (Cloudflare 터널 사용 시 필수)
+echo "MATTERMOST_SITE_URL=https://your-domain.com" >> .env
+
+# 4. 재시작
+docker compose down && docker compose up -d
+
+# 5. 설정 확인
+docker compose exec mattermost env | grep PUSH
+# 출력에 다음이 있어야 함:
+# MM_EMAILSETTINGS_SENDPUSHNOTIFICATIONS=true
+# MM_EMAILSETTINGS_PUSHNOTIFICATIONSERVER=https://push-test.mattermost.com
+# MM_EMAILSETTINGS_PUSHNOTIFICATIONCONTENTS=full
+```
+
+**참고**: 테스트 푸시 서버는 제한이 있으므로 프로덕션에서는 Enterprise 라이선스 또는 자체 Push Proxy 사용을 권장합니다.
 
 ### Mattermost가 시작되지 않음
 
